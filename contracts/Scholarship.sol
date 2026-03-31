@@ -8,6 +8,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Smart contract for managing scholarship allocations with Proof of Authority (PoA) model
  */
 contract Scholarship is Ownable {
+    /**
+     * @dev Initialize the contract with the deployer as the admin (PoA authority)
+     */
+    constructor() Ownable(msg.sender) {}
+
     // Scholarship status enum
     enum ScholarshipStatus {
         PENDING,
