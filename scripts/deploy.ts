@@ -1,34 +1,25 @@
-import { ethers } from "hardhat";
+import { network } from "hardhat";
 
 async function main() {
   console.log("🚀 Deploying Scholarship Distribution System...\n");
 
-  // Get the contract factory
-  const Scholarship = await ethers.getContractFactory("Scholarship");
+  const { viem } = await network.create();
+  const [deployer] = await viem.getWalletClients();
 
-  // Deploy the contract
-  const scholarship = await Scholarship.deploy();
-  
-  console.log("⏳ Waiting for deployment transaction...");
-  const deploymentTx = await scholarship.deploymentTransaction();
-  
-  if (deploymentTx) {
-    await deploymentTx.wait(1);
-  }
+  // Deploy using the viem toolbox (Hardhat 3)
+  const scholarship = await viem.deployContract("Scholarship");
 
   console.log("✅ Scholarship contract deployed successfully!");
-  console.log(`📜 Contract Address: ${scholarship.target}`);
+  console.log(`📜 Contract Address: ${scholarship.address}`);
   console.log(`🔗 Network: localhost:8545\n`);
 
-  // Get deployer info
-  const [deployer] = await ethers.getSigners();
-  console.log(`👤 Deployer Address: ${deployer.address}\n`);
+  console.log(`👤 Deployer Address: ${deployer.account.address}\n`);
 
   // Output contract details for frontend
   console.log("========== FRONTEND CONFIGURATION ==========");
-  console.log(`const CONTRACT_ADDRESS = "${scholarship.target}";`);
+  console.log(`const CONTRACT_ADDRESS = "${scholarship.address}";`);
   console.log(`const PROVIDER_URL = "http://localhost:8545";`);
-  console.log(`const ADMIN_ADDRESS = "${deployer.address}";\n`);
+  console.log(`const ADMIN_ADDRESS = "${deployer.account.address}";\n`);
 
   console.log("========== NEXT STEPS ==========");
   console.log("1. Copy the CONTRACT_ADDRESS to your React frontend");
@@ -37,7 +28,7 @@ async function main() {
   console.log("4. Start the React development server: npm run dev");
   console.log("==========================================\n");
 
-  return scholarship.target;
+  return scholarship.address;
 }
 
 main()
