@@ -132,7 +132,7 @@ export const STATUS_LABELS = {
 };
 
 export const STATUS_COLORS = {
-  0: "bg-yellow-100 text-yellow-800",
-  1: "bg-blue-100 text-blue-800",
-  2: "bg-green-100 text-green-800",
+  0: "bg-neutral-900 text-neutral-300 border-neutral-700",
+  1: "bg-neutral-800 text-neutral-200 border-neutral-600",
+  2: "bg-neutral-100 text-neutral-900 border-neutral-300",
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { initializeProvider, connectMetaMask, getConnectedAddress, formatAddress } from "./utils/ethers";
+import { initializeProvider, connectMetaMask, getConnectedAddress } from "./utils/ethers";
 import { ManagerDashboard } from "./components/ManagerDashboard";
 import { StudentView } from "./components/StudentView";
 import { BookOpen, Wallet } from "lucide-react";
@@ -12,6 +12,7 @@ function App() {
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayAddress, setDisplayAddress] = useState<string | null>(null);
 
   useEffect(() => {
     const initialize = async () => {
@@ -23,6 +24,7 @@ function App() {
         const address = await getConnectedAddress();
         if (address) {
           setConnectedAddress(address);
+          setDisplayAddress(`${address.substring(0, 6)}...${address.substring(address.length - 4)}`);
         }
       } catch (err) {
         setError("Failed to connect to blockchain. Make sure Hardhat node is running on localhost:8545");
@@ -39,6 +41,7 @@ function App() {
     try {
       const address = await connectMetaMask();
       setConnectedAddress(address);
+      setDisplayAddress(`${address.substring(0, 6)}...${address.substring(address.length - 4)}`);
       setConnected(true);
       setError(null);
     } catch (err: any) {
@@ -48,38 +51,38 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-          <p className="text-white mt-4">Connecting to blockchain...</p>
+          <div className="inline-block animate-spin h-12 w-12 border-2 border-neutral-700 border-t-neutral-200"></div>
+          <p className="text-neutral-200 mt-4 uppercase tracking-[0.12em] text-xs">Connecting to blockchain</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100">
       {/* Header */}
-      <header className="bg-gradient-to-r from-slate-800 to-slate-900 border-b border-slate-700 sticky top-0 z-50">
+      <header className="bg-neutral-900 border-b border-neutral-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-blue-400" />
-            <h1 className="text-2xl font-bold text-white">Scholarship Distribution System</h1>
+            <BookOpen className="w-6 h-6 text-neutral-300" />
+            <h1 className="text-xl font-bold text-neutral-100 tracking-wide">Scholarship Distribution System</h1>
           </div>
 
           <div className="flex items-center gap-4">
             {connectedAddress && (
-              <div className="flex items-center gap-2 bg-slate-700 px-4 py-2 rounded-lg">
-                <Wallet className="w-4 h-4 text-green-400" />
-                <span className="text-green-400 text-sm font-mono">
-                  {formatAddress(connectedAddress).then((addr) => addr).catch(() => connectedAddress.substring(0, 10))}
+              <div className="flex items-center gap-2 bg-neutral-800 border border-neutral-700 px-4 py-2">
+                <Wallet className="w-4 h-4 text-neutral-300" />
+                <span className="text-neutral-200 text-sm font-mono">
+                  {displayAddress || `${connectedAddress.substring(0, 6)}...${connectedAddress.substring(connectedAddress.length - 4)}`}
                 </span>
               </div>
             )}
             {!connected && (
               <button
                 onClick={handleConnectMetaMask}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition"
+                className="bg-neutral-100 hover:bg-neutral-300 text-neutral-950 px-4 py-2 font-semibold transition"
               >
                 Connect MetaMask
               </button>
@@ -91,46 +94,46 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 bg-red-900 border border-red-700 rounded-lg p-4 text-red-100">
-            ⚠️ {error}
+          <div className="mb-6 bg-neutral-900 border border-neutral-700 p-4 text-neutral-300">
+            {error}
           </div>
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-2 mb-8 border border-neutral-700 p-2 bg-neutral-900">
           <button
             onClick={() => setCurrentView("student")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all uppercase tracking-[0.08em] text-xs ${
               currentView === "student"
-                ? "bg-purple-600 text-white shadow-lg"
-                : "bg-slate-700 text-gray-300 hover:bg-slate-600"
+                ? "bg-neutral-100 text-neutral-950"
+                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
             }`}
           >
-            👨‍🎓 Student Portal
+            Student View
           </button>
           <button
             onClick={() => setCurrentView("manager")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 font-semibold transition-all uppercase tracking-[0.08em] text-xs ${
               currentView === "manager"
-                ? "bg-blue-600 text-white shadow-lg"
-                : "bg-slate-700 text-gray-300 hover:bg-slate-600"
+                ? "bg-neutral-100 text-neutral-950"
+                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
             }`}
           >
-            📊 Manager Dashboard
+            Manager Dashboard
           </button>
         </div>
 
         {/* View Content */}
-        <div className="bg-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-neutral-900 border border-neutral-700 overflow-hidden">
           {currentView === "manager" ? <ManagerDashboard /> : <StudentView />}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-700 mt-12 py-6 text-center text-gray-400">
-        <p>🔐 Scholarship Distribution System v1.0 - Built with Hardhat, React & Ethers.js</p>
+      <footer className="border-t border-neutral-800 mt-12 py-6 text-center text-neutral-500">
+        <p>Scholarship Distribution System v1.0</p>
         <p className="text-sm mt-2">
-          Network: <span className="text-green-400">localhost:8545</span> | Smart Contract on Ethereum
+          Network: <span className="text-neutral-300">localhost:8545</span>
         </p>
       </footer>
     </div>
