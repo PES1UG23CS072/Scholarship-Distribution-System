@@ -1,7 +1,7 @@
 import { network } from "hardhat";
 
 async function main() {
-  console.log("🚀 Deploying Scholarship Distribution System...\n");
+  console.log("Deploying Scholarship Distribution System...\n");
 
   const { viem } = await network.create();
   const [deployer] = await viem.getWalletClients();
@@ -9,9 +9,9 @@ async function main() {
   // Deploy using the viem toolbox (Hardhat 3)
   const scholarship = await viem.deployContract("Scholarship");
 
-  console.log("✅ Scholarship contract deployed successfully!");
-  console.log(`📜 Contract Address: ${scholarship.address}`);
-  console.log(`🔗 Network: localhost:8545\n`);
+  console.log("Scholarship contract deployed successfully!");
+  console.log(`Contract Address: ${scholarship.address}`);
+  console.log(`Network: localhost:8545\n`);
 
   console.log(`👤 Deployer Address: ${deployer.account.address}\n`);
 

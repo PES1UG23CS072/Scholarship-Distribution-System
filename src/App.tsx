@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { initializeProvider, connectMetaMask, getConnectedAddress } from "./utils/ethers";
+import { initializeProvider, connectMetaMask, getConnectedAddress, isNoWalletDevMode } from "./utils/ethers";
 import { ManagerDashboard } from "./components/ManagerDashboard";
 import { StudentView } from "./components/StudentView";
 import { BookOpen, Wallet } from "lucide-react";
@@ -7,6 +7,7 @@ import { BookOpen, Wallet } from "lucide-react";
 type View = "manager" | "student";
 
 function App() {
+  const noWalletMode = isNoWalletDevMode();
   const [currentView, setCurrentView] = useState<View>("student");
   const [connected, setConnected] = useState(false);
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
@@ -19,12 +20,16 @@ function App() {
       try {
         setLoading(true);
         await initializeProvider();
-        setConnected(true);
 
         const address = await getConnectedAddress();
         if (address) {
           setConnectedAddress(address);
           setDisplayAddress(`${address.substring(0, 6)}...${address.substring(address.length - 4)}`);
+          setConnected(true);
+        } else {
+          setConnected(false);
+          setConnectedAddress(null);
+          setDisplayAddress(null);
         }
       } catch (err) {
         setError("Failed to connect to blockchain. Make sure Hardhat node is running on localhost:8545");
@@ -36,6 +41,40 @@ function App() {
 
     initialize();
   }, []);
+
+  useEffect(() => {
+    if (noWalletMode) {
+      return;
+    }
+
+    const ethereum = typeof window !== "undefined" ? (window as any).ethereum : null;
+    if (!ethereum || !ethereum.on) {
+      return;
+    }
+
+    const handleAccountsChanged = async (accounts: string[]) => {
+      if (!accounts || accounts.length === 0) {
+        setConnected(false);
+        setConnectedAddress(null);
+        setDisplayAddress(null);
+        return;
+      }
+
+      await initializeProvider();
+      const normalizedAddress = await getConnectedAddress();
+      const address = normalizedAddress || accounts[0];
+
+      setConnected(true);
+      setConnectedAddress(address);
+      setDisplayAddress(`${address.substring(0, 6)}...${address.substring(address.length - 4)}`);
+    };
+
+    ethereum.on("accountsChanged", handleAccountsChanged);
+
+    return () => {
+      ethereum.removeListener("accountsChanged", handleAccountsChanged);
+    };
+  }, [noWalletMode]);
 
   const handleConnectMetaMask = async () => {
     try {
@@ -79,7 +118,7 @@ function App() {
                 </span>
               </div>
             )}
-            {!connected && (
+            {!connected && !noWalletMode && (
               <button
                 onClick={handleConnectMetaMask}
                 className="bg-neutral-100 hover:bg-neutral-300 text-neutral-950 px-4 py-2 font-semibold transition"
@@ -125,7 +164,11 @@ function App() {
 
         {/* View Content */}
         <div className="bg-neutral-900 border border-neutral-700 overflow-hidden">
-          {currentView === "manager" ? <ManagerDashboard /> : <StudentView />}
+          {currentView === "manager" ? (
+            <ManagerDashboard connectedAddress={connectedAddress} />
+          ) : (
+            <StudentView />
+          )}
         </div>
       </main>
 

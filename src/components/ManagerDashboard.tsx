@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { getContract, getSigner, formatAmount } from "../utils/ethers";
-import { STATUS_LABELS, STATUS_COLORS } from "../utils/contract";
+import { getContract, getSigner, formatAmount, getConnectedAddress } from "../utils/ethers";
+import { CONTRACT_CONFIG, STATUS_LABELS, STATUS_COLORS } from "../utils/contract";
 import { AlertCircle, CheckCircle, TrendingUp } from "lucide-react";
 
 interface Scholarship {
@@ -12,7 +12,28 @@ interface Scholarship {
   timestamp: number;
 }
 
-export const ManagerDashboard: React.FC = () => {
+interface ManagerDashboardProps {
+  connectedAddress: string | null;
+}
+
+interface AdminDebugState {
+  connectedAddressProp: string | null;
+  resolvedUserAddress: string | null;
+  ownerAddress: string | null;
+  normalizedUserAddress: string | null;
+  normalizedOwnerAddress: string | null;
+  compareResult: boolean;
+  contractAddress: string;
+  rpcUrl: string;
+  rpcChainId: string | null;
+  metaMaskChainId: string | null;
+  signerAddress: string | null;
+  codePresent: boolean | null;
+  timestamp: string | null;
+  lastError: string | null;
+}
+
+export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ connectedAddress }) => {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +47,24 @@ export const ManagerDashboard: React.FC = () => {
 
   const [adminAddress, setAdminAddress] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminDebug, setAdminDebug] = useState<AdminDebugState>({
+    connectedAddressProp: null,
+    resolvedUserAddress: null,
+    ownerAddress: null,
+    normalizedUserAddress: null,
+    normalizedOwnerAddress: null,
+    compareResult: false,
+    contractAddress: CONTRACT_CONFIG.ADDRESS,
+    rpcUrl: CONTRACT_CONFIG.PROVIDER_URL,
+    rpcChainId: null,
+    metaMaskChainId: null,
+    signerAddress: null,
+    codePresent: null,
+    timestamp: null,
+    lastError: null,
+  });
 
   useEffect(() => {
-    loadAdminInfo();
     loadScholarships();
 
     // Poll for updates
@@ -36,21 +72,119 @@ export const ManagerDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    loadAdminInfo();
+  }, [connectedAddress]);
+
   const loadAdminInfo = async () => {
+    let ownerAddress: string | null = null;
+    let resolvedUserAddress: string | null = connectedAddress;
+    let signerAddress: string | null = null;
+    let rpcChainId: string | null = null;
+    let metaMaskChainId: string | null = null;
+    let codePresent: boolean | null = null;
+    let compareResult = false;
+    let lastError: string | null = null;
+
     try {
       const contract = getContract();
-      const owner = await contract.owner();
-      setAdminAddress(owner);
+      const contractAddress = typeof contract.target === "string" ? contract.target : CONTRACT_CONFIG.ADDRESS;
 
-      const signer = getSigner();
-      if (signer) {
-        const userAddress = await signer.getAddress();
-        setIsAdmin(userAddress.toLowerCase() === owner.toLowerCase());
+      const runner = contract.runner as any;
+      if (runner && typeof runner.getNetwork === "function") {
+        const network = await runner.getNetwork();
+        rpcChainId = network?.chainId ? network.chainId.toString() : null;
       }
+
+      if (runner && typeof runner.getCode === "function") {
+        const code = await runner.getCode(contractAddress);
+        codePresent = Boolean(code && code !== "0x");
+      }
+
+      if (typeof window !== "undefined" && (window as any).ethereum?.request) {
+        metaMaskChainId = await (window as any).ethereum.request({ method: "eth_chainId" });
+      }
+
+      const owner = await contract.owner();
+      ownerAddress = owner;
+      setAdminAddress(ownerAddress);
+
+      if (!resolvedUserAddress) {
+        resolvedUserAddress = await getConnectedAddress();
+      }
+
+      if (!resolvedUserAddress) {
+        const signer = getSigner();
+        if (signer) {
+          signerAddress = await signer.getAddress();
+          resolvedUserAddress = signerAddress;
+        }
+      }
+
+      compareResult =
+        Boolean(resolvedUserAddress) &&
+        Boolean(ownerAddress) &&
+        resolvedUserAddress!.toLowerCase() === ownerAddress!.toLowerCase();
+
+      setIsAdmin(compareResult);
     } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      setIsAdmin(false);
       console.error("Failed to load admin info:", err);
+    } finally {
+      setAdminDebug({
+        connectedAddressProp: connectedAddress,
+        resolvedUserAddress,
+        ownerAddress,
+        normalizedUserAddress: resolvedUserAddress ? resolvedUserAddress.toLowerCase() : null,
+        normalizedOwnerAddress: ownerAddress ? ownerAddress.toLowerCase() : null,
+        compareResult,
+        contractAddress: CONTRACT_CONFIG.ADDRESS,
+        rpcUrl: CONTRACT_CONFIG.PROVIDER_URL,
+        rpcChainId,
+        metaMaskChainId,
+        signerAddress,
+        codePresent,
+        timestamp: new Date().toISOString(),
+        lastError,
+      });
     }
   };
+
+  const renderDebugPanel = () => (
+    <div className="bg-neutral-950 border border-neutral-700 p-4 text-left">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-xs font-bold tracking-[0.12em] uppercase text-neutral-300">Admin Access Debug</h3>
+        <button
+          onClick={loadAdminInfo}
+          className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs px-3 py-1 border border-neutral-600 transition"
+        >
+          Refresh Check
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+        <p className="text-neutral-400">contractAddress: <span className="text-neutral-200 break-all">{adminDebug.contractAddress}</span></p>
+        <p className="text-neutral-400">rpcUrl: <span className="text-neutral-200 break-all">{adminDebug.rpcUrl}</span></p>
+        <p className="text-neutral-400">ownerAddress: <span className="text-neutral-200 break-all">{adminDebug.ownerAddress || "null"}</span></p>
+        <p className="text-neutral-400">connectedAddressProp: <span className="text-neutral-200 break-all">{adminDebug.connectedAddressProp || "null"}</span></p>
+        <p className="text-neutral-400">resolvedUserAddress: <span className="text-neutral-200 break-all">{adminDebug.resolvedUserAddress || "null"}</span></p>
+        <p className="text-neutral-400">signerAddress: <span className="text-neutral-200 break-all">{adminDebug.signerAddress || "null"}</span></p>
+        <p className="text-neutral-400">normalizedOwner: <span className="text-neutral-200 break-all">{adminDebug.normalizedOwnerAddress || "null"}</span></p>
+        <p className="text-neutral-400">normalizedUser: <span className="text-neutral-200 break-all">{adminDebug.normalizedUserAddress || "null"}</span></p>
+        <p className="text-neutral-400">rpcChainId: <span className="text-neutral-200">{adminDebug.rpcChainId || "null"}</span></p>
+        <p className="text-neutral-400">metaMaskChainId: <span className="text-neutral-200">{adminDebug.metaMaskChainId || "null"}</span></p>
+        <p className="text-neutral-400">codePresent: <span className="text-neutral-200">{adminDebug.codePresent === null ? "null" : String(adminDebug.codePresent)}</span></p>
+        <p className="text-neutral-400">compareResult: <span className="text-neutral-200">{String(adminDebug.compareResult)}</span></p>
+      </div>
+
+      {adminDebug.lastError && (
+        <p className="mt-3 text-xs text-red-300 break-all">lastError: {adminDebug.lastError}</p>
+      )}
+
+      <p className="mt-2 text-[11px] text-neutral-500">lastCheck: {adminDebug.timestamp || "never"}</p>
+    </div>
+  );
 
   const loadScholarships = async () => {
     try {
@@ -172,14 +306,17 @@ export const ManagerDashboard: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="bg-neutral-900 border border-neutral-700 p-6 text-center">
-        <AlertCircle className="w-10 h-10 text-neutral-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-neutral-100 mb-2 uppercase tracking-[0.08em]">Access Denied</h2>
-        <p className="text-neutral-300">
-          Only the admin can access the Manager Dashboard.
-          <br />
-          Current Admin: {adminAddress && adminAddress.substring(0, 10)}...
-        </p>
+      <div className="space-y-4">
+        <div className="bg-neutral-900 border border-neutral-700 p-6 text-center">
+          <AlertCircle className="w-10 h-10 text-neutral-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-neutral-100 mb-2 uppercase tracking-[0.08em]">Access Denied</h2>
+          <p className="text-neutral-300">
+            Only the admin can access the Manager Dashboard.
+            <br />
+            Current Admin: {adminAddress && adminAddress.substring(0, 10)}...
+          </p>
+        </div>
+        {renderDebugPanel()}
       </div>
     );
   }
@@ -192,6 +329,8 @@ export const ManagerDashboard: React.FC = () => {
         <p className="text-neutral-300">Manage scholarship allocations and disbursements</p>
         <p className="text-sm text-neutral-500 mt-2 font-mono">Admin: {adminAddress && adminAddress.substring(0, 15)}...</p>
       </div>
+
+      {renderDebugPanel()}
 
       {/* Alerts */}
       {error && (
